@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Achtung, die Kurve! - Kurvefeber Multiplayer</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@500;700;900&display=swap" rel="stylesheet">
+
+    <!-- Google Cast SDK -->
+    <script type="text/javascript" src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+
+    <style>
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #0b0f19;
+            color: #f3f4f6;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+        }
+
+        .font-pixel {
+            font-family: 'Press Start 2P', cursive;
+        }
+
+        /* Neon Glow Effects */
+        .glow-box {
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3), inset 0 0 15px rgba(59, 130, 246, 0.2);
+        }
+        
+        .glow-text {
+            text-shadow: 0 0 10px rgba(59, 130, 246, 0.8);
+        }
+
+        /* Canvas Overlay */
+        #gameCanvas {
+            background-color: #050811;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.9), 0 0 10px rgba(59, 130, 246, 0.2);
+            border: 3px solid #1e293b;
+        }
+
+        /* Controller Buttons */
+        .btn-touch {
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+            transition: transform 0.05s ease, background-color 0.1s ease;
+        }
+
+        .btn-touch:active {
+            transform: scale(0.95);
+        }
+
+        /* Modal Blur */
+        .backdrop-blur-custom {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col justify-between items-center bg-slate-950 text-white overflow-hidden">
+
+    <!-- Top Header Navigation -->
+    <header class="w-full bg-slate-900/80 border-b border-slate-800 px-4 py-2 flex items-center justify-between z-20 backdrop-blur-md">
+        <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-xl shadow-lg">
+                ⚡
+            </div>
+            <div>
+                <h1 class="text-xl md:text-2xl font-black tracking-wider bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent uppercase">
+                    Achtung! Kurvefeber
+                </h1>
+                <p class="text-xs text-slate-400 hidden sm:block">Flerspiller slangespill for mobil og TV</p>
+            </div>
+        </div>
+
+        <!-- Action Controls -->
+        <div class="flex items-center space-x-2 md:space-x-4">
+            <button id="castBtn" class="hidden sm:flex items-center space-x-2 bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700 text-xs font-semibold transition" title="Cast til TV / Chromecast">
+                <i class="fa-solid font-bold fa-tv text-cyan-400"></i>
+                <span id="castStatusText">Cast til TV</span>
+            </button>
+            <button id="soundToggleBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-lg border border-slate-700 text-xs font-semibold transition">
+                <i class="fa-solid fa-volume-high text-cyan-400" id="soundIcon"></i>
+            </button>
+            <button id="fullscreenBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-lg border border-slate-700 text-xs font-semibold transition">
+                <i class="fa-solid fa-expand text-slate-300"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="relative w-full flex-1 flex flex-col justify-center items-center p-2 sm:p-4 overflow-hidden">
+
+        <!-- VIEW 1: MODE SELECTION (Lobby Selection) -->
+        <div id="viewModeSelection" class="w-full max-w-4xl flex flex-col items-center justify-center space-y-6 z-10 py-6">
+            <div class="text-center space-y-2">
+                <span class="px-3 py-1 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800 text-xs font-bold tracking-widest uppercase">
+                    Klassisk Retro Arcade
+                </span>
+                <h2 class="text-3xl md:text-5xl font-extrabold tracking-tight">Velg hvordan du vil spille</h2>
+                <p class="text-slate-400 text-sm md:text-base max-w-md mx-auto">
+                    Koble til mobilen som spillkontroll, eller spill direkte på samme skjerm!
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl px-4">
+                <!-- Option A: Host / TV Screen with Phone Controllers -->
+                <button id="btnSelectHost" class="group relative bg-slate-900/90 hover:bg-indigo-950/80 border-2 border-slate-800 hover:border-indigo-500 rounded-2xl p-6 text-left transition-all duration-300 shadow-xl flex flex-col justify-between h-52">
+                    <div class="flex justify-between items-start">
+                        <div class="w-12 h-12 rounded-xl bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 text-2xl group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-mobile-screen-button"></i>
+                        </div>
+                        <span class="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs px-2.5 py-1 rounded-full font-bold">
+                            ANBEFALT 📱+📺
+                        </span>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-white group-hover:text-indigo-300 transition-colors">Vertsskjerm / TV-modus</h3>
+                        <p class="text-xs text-slate-400 mt-1">Vis spillet her på storskjerm. Andre spillere kobler til med mobilen via QR-kode!</p>
+                    </div>
+                </button>
+
+                <!-- Option B: Controller / Join Room -->
+                <button id="btnSelectController" class="group relative bg-slate-900/90 hover:bg-cyan-950/80 border-2 border-slate-800 hover:border-cyan-500 rounded-2xl p-6 text-left transition-all duration-300 shadow-xl flex flex-col justify-between h-52">
+                    <div class="flex justify-between items-start">
+                        <div class="w-12 h-12 rounded-xl bg-cyan-600/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 text-2xl group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-gamepad"></i>
+                        </div>
+                        <span class="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs px-2.5 py-1 rounded-full font-bold">
+                            MOBIL-KONTROLL
+                        </span>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-white group-hover:text-cyan-300 transition-colors">Bli med som kontroll</h3>
+                        <p class="text-xs text-slate-400 mt-1">Bruk denne enheten som styreknapp for å delta på en storskjerm.</p>
+                    </div>
+                </button>
+            </div>
+
+            <!-- Option C: Local Same-Screen Mode -->
+            <button id="btnSelectLocal" class="text-slate-400 hover:text-white text-sm font-semibold underline underline-offset-4 flex items-center space-x-2 transition">
+                <i class="fa-solid fa-keyboard"></i>
+                <span>Eller spill lokalt på én skjerm (2-6 spillere)</span>
+            </button>
+        </div>
+
+        <!-- VIEW 2: HOST LOBBY (TV / Main Screen) -->
+        <div id="viewHostLobby" class="hidden w-full max-w-5xl flex flex-col items-center space-y-6 z-10 py-4">
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 w-full shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6 backdrop-blur-md">
+                
+                <!-- QR Code & Join Info -->
+                <div class="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6 text-center sm:text-left">
+                    <div class="bg-white p-3 rounded-xl shadow-lg border border-slate-300 flex flex-col items-center">
+                        <img id="qrCodeImg" class="w-36 h-36 rounded-md" alt="QR kode for tilkobling">
+                        <span class="text-[10px] text-slate-800 font-bold mt-1">SKANN FOR Å BLI MED</span>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="inline-block px-3 py-1 bg-indigo-950 text-indigo-400 rounded-full text-xs font-bold border border-indigo-800 uppercase">
+                            Spillrom-kode
+                        </div>
+                        <div id="displayRoomCode" class="font-pixel text-4xl md:text-5xl text-cyan-400 tracking-widest glow-text">
+                            ----
+                        </div>
+                        <p class="text-xs text-slate-400 max-w-xs">
+                            Gå til denne nettsiden på mobilen og tast inn koden over, eller skann QR-koden.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Lobby Controls -->
+                <div class="flex flex-col items-center md:items-end space-y-3 w-full md:w-auto">
+                    <div class="text-slate-400 text-xs font-bold">
+                        Tilkoblede spillere: <span id="connectedPlayerCount" class="text-cyan-400 text-sm">0 / 8</span>
+                    </div>
+                    <button id="btnStartOnlineGame" disabled class="w-full md:w-auto px-8 py-4 bg-emerald-600 disabled:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-emerald-500 text-white font-black text-lg rounded-xl shadow-lg shadow-emerald-950/50 transition transform active:scale-95 flex items-center justify-center space-x-3">
+                        <i class="fa-solid fa-play"></i>
+                        <span>START SPILL</span>
+                    </button>
+                    <button id="btnBackFromHost" class="text-xs text-slate-500 hover:text-slate-300 transition">
+                        <i class="fa-solid fa-arrow-left mr-1"></i> Avbryt og gå tilbake
+                    </button>
+                </div>
+            </div>
+
+            <!-- Connected Players Grid -->
+            <div class="w-full">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Spillere i rommet</h3>
+                <div id="hostPlayerListGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full">
+                    <!-- Dynamic Player Cards rendered here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 3: CONTROLLER JOIN FORM -->
+        <div id="viewControllerJoin" class="hidden w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-2xl z-10 space-y-5">
+            <div class="text-center space-y-1">
+                <h2 class="text-2xl font-black text-white">Koble til spillet</h2>
+                <p class="text-xs text-slate-400">Skriv inn koden som vises på storskjermen</p>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Romkode (4 siffer)</label>
+                    <input type="text" id="inputRoomCode" maxlength="4" placeholder="f.eks. 8392" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-center text-2xl font-pixel uppercase tracking-widest text-cyan-400 focus:outline-none focus:border-cyan-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Ditt Navn</label>
+                    <input type="text" id="inputPlayerName" maxlength="10" placeholder="Kallenavn" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Velg Farge</label>
+                    <div id="colorPickerGrid" class="grid grid-cols-6 gap-2">
+                        <!-- Dynamic Color Selectors -->
+                    </div>
+                </div>
+
+                <button id="btnJoinRoomSubmit" class="w-full py-3.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl shadow-lg transition active:scale-95 flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-link"></i>
+                    <span>KOBL TIL ROM</span>
+                </button>
+
+                <button id="btnBackFromJoin" class="w-full py-2 text-xs text-slate-500 hover:text-slate-300">
+                    Tilbake
+                </button>
+            </div>
+        </div>
+
+        <!-- VIEW 4: MOBILE GAMEPAD CONTROLLER VIEW -->
+        <div id="viewMobileGamepad" class="hidden fixed inset-0 bg-slate-950 flex flex-col justify-between p-4 z-50">
+            <!-- Controller Header Status -->
+            <div class="flex justify-between items-center bg-slate-900 border border-slate-800 rounded-xl px-4 py-2">
+                <div class="flex items-center space-x-3">
+                    <div id="gamepadColorDot" class="w-4 h-4 rounded-full bg-red-500 shadow-md"></div>
+                    <span id="gamepadPlayerName" class="font-bold text-sm text-white">Spiller</span>
+                </div>
+                <div id="gamepadStatusBadge" class="text-xs px-2.5 py-1 rounded-md bg-slate-800 text-slate-400 font-bold">
+                    Venter på start...
+                </div>
+            </div>
+
+            <!-- Massive Touch Control Buttons -->
+            <div class="grid grid-cols-2 gap-4 flex-1 my-4">
+                <!-- Left Touch Area -->
+                <button id="btnTouchLeft" class="btn-touch bg-slate-900 active:bg-indigo-900 border-2 border-indigo-600/40 active:border-indigo-400 rounded-3xl flex flex-col items-center justify-center space-y-3 shadow-2xl select-none">
+                    <i class="fa-solid fa-arrow-rotate-left text-5xl md:text-7xl text-indigo-400"></i>
+                    <span class="font-pixel text-xs text-indigo-300 tracking-wider">VENSTRE</span>
+                </button>
+
+                <!-- Right Touch Area -->
+                <button id="btnTouchRight" class="btn-touch bg-slate-900 active:bg-cyan-900 border-2 border-cyan-600/40 active:border-cyan-400 rounded-3xl flex flex-col items-center justify-center space-y-3 shadow-2xl select-none">
+                    <i class="fa-solid fa-arrow-rotate-right text-5xl md:text-7xl text-cyan-400"></i>
+                    <span class="font-pixel text-xs text-cyan-300 tracking-wider">HØYRE</span>
+                </button>
+            </div>
+
+            <p class="text-center text-[10px] text-slate-500 uppercase tracking-widest">Hold knappen for å svinge</p>
+        </div>
+
+        <!-- VIEW 5: LOCAL MULTIPLAYER LOBBY -->
+        <div id="viewLocalLobby" class="hidden w-full max-w-xl bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-2xl z-10 space-y-5">
+            <div class="text-center">
+                <h2 class="text-2xl font-black text-white">Lokal Flerspiller</h2>
+                <p class="text-xs text-slate-400">Spill på samme tastatur eller skjerm</p>
+            </div>
+
+            <div id="localPlayersList" class="space-y-3 max-h-60 overflow-y-auto pr-1">
+                <!-- Dynamic local player rows -->
+            </div>
+
+            <div class="flex items-center justify-between pt-2 border-t border-slate-800">
+                <button id="btnAddLocalPlayer" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-bold border border-slate-700 transition flex items-center space-x-1">
+                    <i class="fa-solid fa-plus text-cyan-400"></i>
+                    <span>Legg til spiller</span>
+                </button>
+                <button id="btnStartLocalGame" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-sm transition shadow-md">
+                    Start Lokalt Spill
+                </button>
+            </div>
+
+            <button id="btnBackFromLocal" class="w-full text-center text-xs text-slate-500 hover:text-slate-300">
+                Tilbake
+            </button>
+        </div>
+
+        <!-- VIEW 6: GAME CANVAS ARENA (Shared for Host & Local) -->
+        <div id="viewGameArena" class="hidden w-full h-full flex flex-col items-center justify-center relative z-10">
+            
+            <!-- Dynamic Score Header -->
+            <div id="scoreboardHeader" class="w-full max-w-5xl flex items-center justify-between mb-2 px-2">
+                <div class="flex items-center space-x-2">
+                    <span class="text-xs font-bold text-slate-400 uppercase">Runde:</span>
+                    <span id="currentRoundText" class="font-pixel text-sm text-cyan-400">1</span>
+                </div>
+                <div id="livePlayerBadges" class="flex flex-wrap gap-2 justify-center">
+                    <!-- Dynamic live score badges -->
+                </div>
+                <div class="text-xs font-bold text-slate-400">
+                    Mål: <span id="targetScoreText" class="text-white">10</span> p
+                </div>
+            </div>
+
+            <!-- Canvas Container -->
+            <div class="relative w-full max-w-5xl aspect-[4/3] max-h-[75vh] flex items-center justify-center">
+                <canvas id="gameCanvas" class="w-full h-full rounded-2xl object-contain"></canvas>
+
+                <!-- Countdown & Round Overlay -->
+                <div id="gameOverlayModal" class="hidden absolute inset-0 backdrop-blur-custom bg-slate-950/70 rounded-2xl flex flex-col items-center justify-center space-y-4 z-30">
+                    <div id="overlayMessage" class="font-pixel text-4xl md:text-6xl text-cyan-400 animate-pulse text-center glow-text">
+                        READY?
+                    </div>
+                    <div id="overlaySubMessage" class="text-slate-300 font-bold text-sm md:text-base">
+                        Gjør deg klar til å svinge!
+                    </div>
+                    <button id="btnNextRound" class="hidden px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-base shadow-xl transition transform active:scale-95">
+                        Neste Runde <i class="fa-solid fa-arrow-right ml-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Custom UI Message Toast -->
+    <div id="toastContainer" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-300 opacity-0 transform translate-y-4">
+        <div id="toastContent" class="bg-slate-900/90 border border-cyan-500/50 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-2xl backdrop-blur-md flex items-center space-x-2">
+            <i class="fa-solid fa-circle-info text-cyan-400" id="toastIcon"></i>
+            <span id="toastText">Melding</span>
+        </div>
+    </div>
+
+    <!-- Firebase Imports Module -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global App State & Color Configurations
+        const PLAYER_COLORS = [
+            { id: 'red', hex: '#ef4444', label: 'Rød' },
+            { id: 'cyan', hex: '#06b6d4', label: 'Cyan' },
+            { id: 'emerald', hex: '#10b981', label: 'Grønn' },
+            { id: 'yellow', hex: '#eab308', label: 'Gul' },
+            { id: 'purple', hex: '#a855f7', label: 'Lilla' },
+            { id: 'pink', hex: '#ec4899', label: 'Rosa' },
+            { id: 'orange', hex: '#f97316', label: 'Oransje' },
+            { id: 'blue', hex: '#3b82f6', label: 'Blå' }
+        ];
+
+        const LOCAL_CONTROLS_PRESETS = [
+            { left: 'KeyA', right: 'KeyS', label: 'A / S' },
+            { left: 'ArrowLeft', right: 'ArrowRight', label: '← / →' },
+            { left: 'KeyJ', right: 'KeyK', label: 'J / K' },
+            { left: 'KeyV', right: 'KeyB', label: 'V / B' },
+            { left: 'Numpad4', right: 'Numpad5', label: '4 / 5' },
+            { left: 'KeyOP', right: 'KeyP', label: 'O / P' }
+        ];
+
+        // Firebase Initialization Guard
+        let db = null;
+        let auth = null;
+        let currentUser = null;
+        let currentRoomId = null;
+        let roomUnsubscribe = null;
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'achtung-kurve-app';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "demo-key",
+            authDomain: "demo.firebaseapp.com",
+            projectId: "demo-project",
+            storageBucket: "demo.appspot.com",
+            messagingSenderId: "000000000",
+            appId: "1:000000000:web:000000000"
+        };
+
+        // Initialize Firebase safely
+        try {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            
+            // Authenticate before performing Firestore queries
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                signInWithCustomToken(auth, __initial_auth_token).then(res => currentUser = res.user).catch(() => {
+                    signInAnonymously(auth).then(res => currentUser = res.user);
+                });
+            } else {
+                signInAnonymously(auth).then(res => currentUser = res.user);
+            }
+        } catch (err) {
+            console.warn("Firebase Running in Standalone / Demo fallback mode:", err);
+        }
+
+        // Retro Web Audio Synthesizer for SFX
+        class AudioSynth {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+
+            playBeep(freq = 440, type = 'sine', duration = 0.1) {
+                if (!this.enabled) return;
+                this.init();
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch(e){}
+            }
+
+            playCrash() {
+                if (!this.enabled) return;
+                this.init();
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.3);
+                    gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.3);
+                } catch(e){}
+            }
+
+            playPowerup() {
+                if (!this.enabled) return;
+                this.playBeep(523.25, 'triangle', 0.08);
+                setTimeout(() => this.playBeep(659.25, 'triangle', 0.08), 80);
+                setTimeout(() => this.playBeep(783.99, 'triangle', 0.12), 160);
+            }
+
+            playFanfare() {
+                if (!this.enabled) return;
+                const notes = [440, 554.37, 659.25, 880];
+                notes.forEach((n, idx) => {
+                    setTimeout(() => this.playBeep(n, 'square', 0.15), idx * 120);
+                });
+            }
+        }
+
+        const audio = new AudioSynth();
+
+        // Main Achtung, die Kurve Game Engine
+        class AchtungGameEngine {
+            constructor(canvas, onStateChange) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.onStateChange = onStateChange;
+
+                // Offscreen canvas for collision pixel tracking
+                this.collisionCanvas = document.createElement('canvas');
+                this.collisionCtx = this.collisionCanvas.getContext('2d');
+
+                this.players = [];
+                this.powerups = [];
+                this.particles = [];
+                
+                this.isRunning = false;
+                this.isRoundActive = false;
+                this.round = 1;
+                this.targetScore = 10;
+                
+                this.speed = 2.2;
+                this.turnSpeed = 0.055;
+                this.lineWidth = 4;
+                
+                this.animFrameId = null;
+                this.gapIntervalMin = 120;
+                this.gapIntervalMax = 220;
+
+                this.resizeCanvas();
+                window.addEventListener('resize', () => this.resizeCanvas());
+            }
+
+            resizeCanvas() {
+                const rect = this.canvas.getBoundingClientRect();
+                this.width = rect.width || 800;
+                this.height = rect.height || 600;
+
+                this.canvas.width = this.width;
+                this.canvas.height = this.height;
+
+                this.collisionCanvas.width = this.width;
+                this.collisionCanvas.height = this.height;
+                
+                if (!this.isRoundActive) {
+                    this.clearCanvas();
+                }
+            }
+
+            clearCanvas() {
+                this.ctx.fillStyle = '#050811';
+                this.ctx.fillRect(0, 0, this.width, this.height);
+
+                this.collisionCtx.fillStyle = '#000000';
+                this.collisionCtx.fillRect(0, 0, this.width, this.height);
+                
+                // Draw arena borders on collision canvas
+                this.collisionCtx.strokeStyle = '#ffffff';
+                this.collisionCtx.lineWidth = 10;
+                this.collisionCtx.strokeRect(0, 0, this.width, this.height);
+            }
+
+            setupMatch(playerConfigs, targetScore = 10) {
+                this.targetScore = targetScore;
+                this.round = 1;
+                this.players = playerConfigs.map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    color: p.color,
+                    score: 0,
+                    isAlive: true,
+                    x: 0,
+                    y: 0,
+                    angle: 0,
+                    turning: 0, // -1 Left, 1 Right, 0 None
+                    gapTicks: 0,
+                    isGap: false,
+                    nextGapIn: 100,
+                    thickDuration: 0,
+                    inverted: false,
+                    speedMult: 1.0
+                }));
+            }
+
+            startNewRound() {
+                this.clearCanvas();
+                this.powerups = [];
+                this.particles = [];
+
+                const margin = 80;
+                this.players.forEach(p => {
+                    p.isAlive = true;
+                    p.x = margin + Math.random() * (this.width - margin * 2);
+                    p.y = margin + Math.random() * (this.height - margin * 2);
+                    p.angle = Math.random() * Math.PI * 2;
+                    p.turning = 0;
+                    p.gapTicks = 0;
+                    p.isGap = false;
+                    p.nextGapIn = 60 + Math.random() * 100;
+                    p.thickDuration = 0;
+                    p.inverted = false;
+                    p.speedMult = 1.0;
+                });
+
+                this.isRoundActive = true;
+                this.isRunning = true;
+                this.gameLoop();
+            }
+
+            gameLoop() {
+                if (!this.isRunning) return;
+
+                if (this.isRoundActive) {
+                    this.updatePhysics();
+                    this.render();
+                }
+
+                this.animFrameId = requestAnimationFrame(() => this.gameLoop());
+            }
+
+            updatePhysics() {
+                let aliveCount = 0;
+                let lastAlivePlayer = null;
+
+                // Random Powerup Spawning
+                if (Math.random() < 0.003 && this.powerups.length < 3) {
+                    this.spawnPowerup();
+                }
+
+                this.players.forEach(p => {
+                    if (!p.isAlive) return;
+                    aliveCount++;
+                    lastAlivePlayer = p;
+
+                    // Handle Gap Generation
+                    p.nextGapIn--;
+                    if (p.nextGapIn <= 0) {
+                        p.isGap = true;
+                        p.gapTicks = 12 + Math.floor(Math.random() * 8); // Hole size
+                        p.nextGapIn = this.gapIntervalMin + Math.random() * (this.gapIntervalMax - this.gapIntervalMin);
+                    }
+
+                    if (p.isGap) {
+                        p.gapTicks--;
+                        if (p.gapTicks <= 0) {
+                            p.isGap = false;
+                        }
+                    }
+
+                    // Steering & Steering Inversion Effect
+                    let effectiveTurning = p.turning;
+                    if (p.inverted) effectiveTurning *= -1;
+
+                    p.angle += effectiveTurning * this.turnSpeed;
+
+                    // Calculate next position
+                    const curSpeed = this.speed * p.speedMult;
+                    const nextX = p.x + Math.cos(p.angle) * curSpeed;
+                    const nextY = p.y + Math.sin(p.angle) * curSpeed;
+
+                    const curRadius = p.thickDuration > 0 ? this.lineWidth * 1.5 : this.lineWidth;
+
+                    // Pixel-perfect collision check
+                    if (!p.isGap) {
+                        if (this.checkCollision(nextX, nextY, p.angle, curRadius)) {
+                            p.isAlive = false;
+                            audio.playCrash();
+                            this.createExplosion(p.x, p.y, p.color);
+                            
+                            // Award 1 point to all surviving players
+                            this.players.forEach(other => {
+                                if (other.isAlive && other.id !== p.id) {
+                                    other.score++;
+                                }
+                            });
+
+                            if (this.onStateChange) this.onStateChange('PLAYER_DIED', { player: p, players: this.players });
+                            return;
+                        }
+                    }
+
+                    // Check Powerup Pickups
+                    this.powerups.forEach((pw, idx) => {
+                        const dist = Math.hypot(nextX - pw.x, nextY - pw.y);
+                        if (dist < pw.radius + curRadius) {
+                            audio.playPowerup();
+                            this.applyPowerup(p, pw.type);
+                            this.powerups.splice(idx, 1);
+                        }
+                    });
+
+                    // Draw line segment onto visible canvas & collision canvas
+                    if (!p.isGap) {
+                        this.ctx.beginPath();
+                        this.ctx.strokeStyle = p.color;
+                        this.ctx.lineWidth = curRadius;
+                        this.ctx.lineCap = 'round';
+                        this.ctx.moveTo(p.x, p.y);
+                        this.ctx.lineTo(nextX, nextY);
+                        this.ctx.stroke();
+
+                        this.collisionCtx.beginPath();
+                        this.collisionCtx.strokeStyle = '#ffffff';
+                        this.collisionCtx.lineWidth = curRadius;
+                        this.collisionCtx.lineCap = 'round';
+                        this.collisionCtx.moveTo(p.x, p.y);
+                        this.collisionCtx.lineTo(nextX, nextY);
+                        this.collisionCtx.stroke();
+                    }
+
+                    p.x = nextX;
+                    p.y = nextY;
+                });
+
+                // Update particles
+                this.particles.forEach((part, i) => {
+                    part.x += part.vx;
+                    part.y += part.vy;
+                    part.alpha -= 0.02;
+                    if (part.alpha <= 0) this.particles.splice(i, 1);
+                });
+
+                // Round Over Conditions
+                if (aliveCount <= 1 && this.players.length > 1) {
+                    this.isRoundActive = false;
+                    const winner = lastAlivePlayer;
+                    if (this.onStateChange) this.onStateChange('ROUND_OVER', { winner, players: this.players });
+                } else if (aliveCount === 0 && this.players.length === 1) {
+                    this.isRoundActive = false;
+                    if (this.onStateChange) this.onStateChange('ROUND_OVER', { winner: null, players: this.players });
+                }
+            }
+
+            checkCollision(x, y, angle, radius) {
+                // Wall boundaries check
+                if (x - radius <= 5 || x + radius >= this.width - 5 || y - radius <= 5 || y + radius >= this.height - 5) {
+                    return true;
+                }
+
+                // Check ahead pixels on offscreen collision canvas
+                const probeDist = radius + 2;
+                const probeX = Math.round(x + Math.cos(angle) * probeDist);
+                const probeY = Math.round(y + Math.sin(angle) * probeDist);
+
+                try {
+                    const pixel = this.collisionCtx.getImageData(probeX, probeY, 1, 1).data;
+                    // White pixel on collision canvas means trail or wall hit
+                    return pixel[0] > 128;
+                } catch(e) {
+                    return true;
+                }
+            }
+
+            spawnPowerup() {
+                const types = [
+                    { id: 'SPEED', color: '#ef4444', icon: '🚀' },
+                    { id: 'SLOW', color: '#3b82f6', icon: '🐌' },
+                    { id: 'INVERT', color: '#a855f7', icon: '🔄' },
+                    { id: 'CLEAR', color: '#10b981', icon: '🧼' }
+                ];
+                const type = types[Math.floor(Math.random() * types.length)];
+                this.powerups.push({
+                    x: 60 + Math.random() * (this.width - 120),
+                    y: 60 + Math.random() * (this.height - 120),
+                    radius: 14,
+                    type
+                });
+            }
+
+            applyPowerup(player, type) {
+                if (type.id === 'SPEED') {
+                    player.speedMult = 1.7;
+                    setTimeout(() => player.speedMult = 1.0, 4000);
+                } else if (type.id === 'SLOW') {
+                    player.speedMult = 0.6;
+                    setTimeout(() => player.speedMult = 1.0, 4000);
+                } else if (type.id === 'INVERT') {
+                    // Invert opponent controls
+                    this.players.forEach(p => {
+                        if (p.id !== player.id) {
+                            p.inverted = true;
+                            setTimeout(() => p.inverted = false, 5000);
+                        }
+                    });
+                } else if (type.id === 'CLEAR') {
+                    this.clearCanvas();
+                }
+            }
+
+            createExplosion(x, y, color) {
+                for (let i = 0; i < 20; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 1 + Math.random() * 4;
+                    this.particles.push({
+                        x, y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        color,
+                        alpha: 1.0
+                    });
+                }
+            }
+
+            render() {
+                // Render Powerups
+                this.powerups.forEach(pw => {
+                    this.ctx.beginPath();
+                    this.ctx.fillStyle = pw.type.color;
+                    this.ctx.arc(pw.x, pw.y, pw.radius, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    this.ctx.lineWidth = 2;
+                    this.ctx.strokeStyle = '#ffffff';
+                    this.ctx.stroke();
+
+                    this.ctx.font = '12px sans-serif';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.textBaseline = 'middle';
+                    this.ctx.fillText(pw.type.icon, pw.x, pw.y);
+                });
+
+                // Render Particles
+                this.particles.forEach(p => {
+                    this.ctx.save();
+                    this.ctx.globalAlpha = p.alpha;
+                    this.ctx.fillStyle = p.color;
+                    this.ctx.beginPath();
+                    this.ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    this.ctx.restore();
+                });
+            }
+
+            stop() {
+                this.isRunning = false;
+                if (this.animFrameId) cancelAnimationFrame(this.animFrameId);
+            }
+        }
+
+        // Main Application Controller
+        class App {
+            constructor() {
+                this.mode = 'SELECT'; // 'SELECT' | 'HOST' | 'JOIN' | 'CONTROLLER' | 'LOCAL'
+                this.roomCode = null;
+                this.gameEngine = null;
+                
+                // Local players configuration
+                this.localPlayers = [
+                    { id: 'p1', name: 'Spiller 1', color: PLAYER_COLORS[0].hex, controls: LOCAL_CONTROLS_PRESETS[0] },
+                    { id: 'p2', name: 'Spiller 2', color: PLAYER_COLORS[1].hex, controls: LOCAL_CONTROLS_PRESETS[1] }
+                ];
+
+                this.myPlayerId = null;
+                this.myPlayerColor = PLAYER_COLORS[0].hex;
+
+                this.initDOM();
+                this.bindEvents();
+                this.checkUrlRoomParams();
+            }
+
+            initDOM() {
+                this.views = {
+                    selection: document.getElementById('viewModeSelection'),
+                    hostLobby: document.getElementById('viewHostLobby'),
+                    controllerJoin: document.getElementById('viewControllerJoin'),
+                    mobileGamepad: document.getElementById('viewMobileGamepad'),
+                    localLobby: document.getElementById('viewLocalLobby'),
+                    gameArena: document.getElementById('viewGameArena')
+                };
+
+                this.canvas = document.getElementById('gameCanvas');
+                this.gameEngine = new AchtungGameEngine(this.canvas, (event, data) => this.handleGameEngineEvent(event, data));
+
+                this.renderColorPicker();
+                this.renderLocalPlayersList();
+            }
+
+            showToast(msg, icon = 'fa-circle-info') {
+                const toast = document.getElementById('toastContainer');
+                document.getElementById('toastText').innerText = msg;
+                document.getElementById('toastIcon').className = `fa-solid ${icon} text-cyan-400`;
+                toast.classList.remove('opacity-0', 'translate-y-4');
+                setTimeout(() => {
+                    toast.classList.add('opacity-0', 'translate-y-4');
+                }, 3000);
+            }
+
+            switchView(viewName) {
+                Object.keys(this.views).forEach(k => this.views[k].classList.add('hidden'));
+                if (this.views[viewName]) this.views[viewName].classList.remove('hidden');
+            }
+
+            bindEvents() {
+                // Main Navigation Buttons
+                document.getElementById('btnSelectHost').onclick = () => this.startHostMode();
+                document.getElementById('btnSelectController').onclick = () => this.startControllerJoinMode();
+                document.getElementById('btnSelectLocal').onclick = () => this.startLocalMode();
+
+                document.getElementById('btnBackFromHost').onclick = () => this.leaveRoomAndReset();
+                document.getElementById('btnBackFromJoin').onclick = () => this.leaveRoomAndReset();
+                document.getElementById('btnBackFromLocal').onclick = () => this.switchView('selection');
+
+                // Host Start Online Game
+                document.getElementById('btnStartOnlineGame').onclick = () => this.launchOnlineGameMatch();
+                document.getElementById('btnStartLocalGame').onclick = () => this.launchLocalGameMatch();
+                document.getElementById('btnAddLocalPlayer').onclick = () => this.addLocalPlayer();
+
+                // Controller Join Submit
+                document.getElementById('btnJoinRoomSubmit').onclick = () => this.submitControllerJoin();
+
+                // Next Round Button
+                document.getElementById('btnNextRound').onclick = () => {
+                    document.getElementById('gameOverlayModal').classList.add('hidden');
+                    this.gameEngine.startNewRound();
+                };
+
+                // Sound Toggle
+                document.getElementById('soundToggleBtn').onclick = () => {
+                    audio.enabled = !audio.enabled;
+                    document.getElementById('soundIcon').className = audio.enabled ? 'fa-solid fa-volume-high text-cyan-400' : 'fa-solid fa-volume-xmark text-slate-500';
+                    this.showToast(audio.enabled ? 'Lyd aktivert' : 'Lyd deaktivert');
+                };
+
+                // Fullscreen Toggle
+                document.getElementById('fullscreenBtn').onclick = () => {
+                    if (!document.fullscreenElement) {
+                        document.documentElement.requestFullscreen().catch(()=>{});
+                    } else {
+                        document.exitFullscreen().catch(()=>{});
+                    }
+                };
+
+                // Keyboard Steering Listeners for Local & Testing Mode
+                window.addEventListener('keydown', (e) => this.handleKeyDown(e));
+                window.addEventListener('keyup', (e) => this.handleKeyUp(e));
+
+                // Mobile Touch Controls
+                this.bindMobileControls();
+            }
+
+            bindMobileControls() {
+                const btnLeft = document.getElementById('btnTouchLeft');
+                const btnRight = document.getElementById('btnTouchRight');
+
+                const setTurning = (val) => {
+                    if (navigator.vibrate) navigator.vibrate(15);
+                    if (this.mode === 'CONTROLLER' && currentRoomId && this.myPlayerId) {
+                        this.updateOnlinePlayerInput(val);
+                    }
+                };
+
+                // Touch Events Left
+                btnLeft.addEventListener('touchstart', (e) => { e.preventDefault(); setTurning(-1); });
+                btnLeft.addEventListener('touchend', (e) => { e.preventDefault(); setTurning(0); });
+                btnLeft.addEventListener('mousedown', () => setTurning(-1));
+                btnLeft.addEventListener('mouseup', () => setTurning(0));
+
+                // Touch Events Right
+                btnRight.addEventListener('touchstart', (e) => { e.preventDefault(); setTurning(1); });
+                btnRight.addEventListener('touchend', (e) => { e.preventDefault(); setTurning(0); });
+                btnRight.addEventListener('mousedown', () => setTurning(1));
+                btnRight.addEventListener('mouseup', () => setTurning(0));
+            }
+
+            checkUrlRoomParams() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const room = urlParams.get('room');
+                if (room) {
+                    document.getElementById('inputRoomCode').value = room.toUpperCase();
+                    this.startControllerJoinMode();
+                }
+            }
+
+            async startHostMode() {
+                if (!db) {
+                    this.showToast('Database ikke tilgjengelig. Sjekk internett.', 'fa-triangle-exclamation');
+                    return;
+                }
+
+                this.mode = 'HOST';
+                this.roomCode = Math.floor(1000 + Math.random() * 9000).toString();
+                currentRoomId = this.roomCode;
+
+                document.getElementById('displayRoomCode').innerText = this.roomCode;
+                
+                // Generate QR Code URL pointing directly to controller join
+                const joinUrl = `${window.location.origin}${window.location.pathname}?room=${this.roomCode}`;
+                const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(joinUrl)}`;
+                document.getElementById('qrCodeImg').src = qrUrl;
+
+                this.switchView('hostLobby');
+
+                // Create Firestore Room Document
+                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'achtung_rooms', this.roomCode);
+                await setDoc(roomRef, {
+                    status: 'LOBBY',
+                    createdAt: Date.now(),
+                    players: {}
+                });
+
+                // Listen for joining players
+                this.subscribeToRoom(roomRef, (data) => this.handleHostRoomUpdate(data));
+            }
+
+            handleHostRoomUpdate(data) {
+                if (!data || !data.players) return;
+
+                const playersList = Object.values(data.players);
+                document.getElementById('connectedPlayerCount').innerText = `${playersList.length} / 8`;
+
+                // Update Start button state
+                const startBtn = document.getElementById('btnStartOnlineGame');
+                startBtn.disabled = playersList.length < 1;
+
+                // Render Connected Players in Host Grid
+                const grid = document.getElementById('hostPlayerListGrid');
+                grid.innerHTML = playersList.map(p => `
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 flex items-center space-x-3 shadow-md">
+                        <div class="w-4 h-4 rounded-full" style="background-color: ${p.color}"></div>
+                        <span class="font-bold text-sm text-white truncate">${p.name}</span>
+                    </div>
+                `).join('');
+
+                // If game is in progress, sync player inputs
+                if (this.mode === 'HOST_GAME') {
+                    playersList.forEach(p => {
+                        const enginePlayer = this.gameEngine.players.find(ep => ep.id === p.id);
+                        if (enginePlayer) {
+                            enginePlayer.turning = p.turning || 0;
+                        }
+                    });
+                }
+            }
+
+            startControllerJoinMode() {
+                this.mode = 'JOIN';
+                this.switchView('controllerJoin');
+            }
+
+            async submitControllerJoin() {
+                const code = document.getElementById('inputRoomCode').value.trim().toUpperCase();
+                const name = document.getElementById('inputPlayerName').value.trim() || 'Spiller';
+
+                if (!code || code.length !== 4) {
+                    this.showToast('Vennligst oppgi en gyldig 4-sifret romkode', 'fa-circle-exclamation');
+                    return;
+                }
+
+                if (!db) {
+                    this.showToast('Tilkoblingsfeil. Sjekk internett.', 'fa-triangle-exclamation');
+                    return;
+                }
+
+                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'achtung_rooms', code);
+                const snap = await getDoc(roomRef);
+
+                if (!snap.exists()) {
+                    this.showToast('Fant ikke spillet. Sjekk koden!', 'fa-circle-exclamation');
+                    return;
+                }
+
+                this.mode = 'CONTROLLER';
+                currentRoomId = code;
+                this.myPlayerId = currentUser?.uid || 'p_' + Math.random().toString(36).substring(2, 7);
+
+                // Add player to Firestore Room
+                await updateDoc(roomRef, {
+                    [`players.${this.myPlayerId}`]: {
+                        id: this.myPlayerId,
+                        name: name,
+                        color: this.myPlayerColor,
+                        turning: 0
+                    }
+                });
+
+                // Set Mobile Gamepad UI
+                document.getElementById('gamepadPlayerName').innerText = name;
+                document.getElementById('gamepadColorDot').style.backgroundColor = this.myPlayerColor;
+                this.switchView('mobileGamepad');
+
+                // Subscribe to room status changes
+                this.subscribeToRoom(roomRef, (data) => {
+                    if (data?.status === 'PLAYING') {
+                        document.getElementById('gamepadStatusBadge').innerText = '🔥 SPILL PÅGÅR';
+                        document.getElementById('gamepadStatusBadge').className = 'text-xs px-2.5 py-1 rounded-md bg-emerald-950 text-emerald-400 font-bold border border-emerald-800';
+                    }
+                });
+            }
+
+            async updateOnlinePlayerInput(turningVal) {
+                if (!db || !currentRoomId || !this.myPlayerId) return;
+                try {
+                    const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'achtung_rooms', currentRoomId);
+                    await updateDoc(roomRef, {
+                        [`players.${this.myPlayerId}.turning`]: turningVal
+                    });
+                } catch(e){}
+            }
+
+            subscribeToRoom(roomRef, callback) {
+                if (roomUnsubscribe) roomUnsubscribe();
+                roomUnsubscribe = onSnapshot(roomRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        callback(docSnap.data());
+                    }
+                }, (err) => {
+                    console.error("Room Subscription error:", err);
+                });
+            }
+
+            async launchOnlineGameMatch() {
+                this.mode = 'HOST_GAME';
+                
+                // Update Firestore status
+                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'achtung_rooms', currentRoomId);
+                await updateDoc(roomRef, { status: 'PLAYING' });
+
+                const snap = await getDoc(roomRef);
+                const playersData = Object.values(snap.data().players || {});
+
+                this.switchView('gameArena');
+                this.gameEngine.setupMatch(playersData, 10);
+                this.renderScoreboardHeader();
+                
+                // Countdown Overlay
+                this.triggerCountdown(() => {
+                    this.gameEngine.startNewRound();
+                });
+            }
+
+            startLocalMode() {
+                this.mode = 'LOCAL';
+                this.switchView('localLobby');
+            }
+
+            launchLocalGameMatch() {
+                this.mode = 'LOCAL_GAME';
+                this.switchView('gameArena');
+                this.gameEngine.setupMatch(this.localPlayers, 10);
+                this.renderScoreboardHeader();
+                
+                this.triggerCountdown(() => {
+                    this.gameEngine.startNewRound();
+                });
+            }
+
+            triggerCountdown(onComplete) {
+                const modal = document.getElementById('gameOverlayModal');
+                const msg = document.getElementById('overlayMessage');
+                const sub = document.getElementById('overlaySubMessage');
+                const btn = document.getElementById('btnNextRound');
+
+                modal.classList.remove('hidden');
+                btn.classList.add('hidden');
+                sub.innerText = 'Gjør deg klar!';
+
+                let count = 3;
+                msg.innerText = count;
+                audio.playBeep(440, 'sine', 0.1);
+
+                const timer = setInterval(() => {
+                    count--;
+                    if (count > 0) {
+                        msg.innerText = count;
+                        audio.playBeep(440, 'sine', 0.1);
+                    } else if (count === 0) {
+                        msg.innerText = 'Kjør!';
+                        audio.playBeep(880, 'sine', 0.2);
+                    } else {
+                        clearInterval(timer);
+                        modal.classList.add('hidden');
+                        if (onComplete) onComplete();
+                    }
+                }, 800);
+            }
+
+            handleGameEngineEvent(event, data) {
+                if (event === 'PLAYER_DIED') {
+                    this.renderScoreboardHeader();
+                } else if (event === 'ROUND_OVER') {
+                    this.renderScoreboardHeader();
+
+                    // Check overall match winner
+                    const target = this.gameEngine.targetScore;
+                    const matchWinner = this.gameEngine.players.find(p => p.score >= target);
+
+                    const modal = document.getElementById('gameOverlayModal');
+                    const msg = document.getElementById('overlayMessage');
+                    const sub = document.getElementById('overlaySubMessage');
+                    const btn = document.getElementById('btnNextRound');
+
+                    modal.classList.remove('hidden');
+
+                    if (matchWinner) {
+                        audio.playFanfare();
+                        msg.innerText = 'SEIER!';
+                        sub.innerText = `${matchWinner.name} vant hele kampen! 🏆`;
+                        btn.innerText = 'Hovedmeny';
+                        btn.classList.remove('hidden');
+                        btn.onclick = () => this.leaveRoomAndReset();
+                    } else {
+                        msg.innerText = data.winner ? `${data.winner.name} vant runden!` : 'Uavgjort runde!';
+                        sub.innerText = 'Trykk for å starte neste runde';
+                        btn.innerText = 'Neste Runde';
+                        btn.classList.remove('hidden');
+                        btn.onclick = () => {
+                            modal.classList.add('hidden');
+                            this.gameEngine.round++;
+                            document.getElementById('currentRoundText').innerText = this.gameEngine.round;
+                            this.triggerCountdown(() => this.gameEngine.startNewRound());
+                        };
+                    }
+                }
+            }
+
+            renderScoreboardHeader() {
+                const container = document.getElementById('livePlayerBadges');
+                container.innerHTML = this.gameEngine.players.map(p => `
+                    <div class="px-3 py-1 rounded-lg bg-slate-900 border ${p.isAlive ? 'border-slate-700' : 'border-red-900/50 opacity-40'} flex items-center space-x-2">
+                        <div class="w-3 h-3 rounded-full" style="background-color: ${p.color}"></div>
+                        <span class="text-xs font-bold text-white">${p.name}</span>
+                        <span class="font-pixel text-xs text-cyan-400">${p.score}</span>
+                    </div>
+                `).join('');
+            }
+
+            renderColorPicker() {
+                const grid = document.getElementById('colorPickerGrid');
+                grid.innerHTML = PLAYER_COLORS.map((c, i) => `
+                    <button type="button" data-color="${c.hex}" class="color-opt-btn w-8 h-8 rounded-full flex items-center justify-center border-2 ${i === 0 ? 'border-white scale-110' : 'border-transparent'}" style="background-color: ${c.hex}">
+                    </button>
+                `).join('');
+
+                grid.querySelectorAll('.color-opt-btn').forEach(btn => {
+                    btn.onclick = () => {
+                        grid.querySelectorAll('.color-opt-btn').forEach(b => b.classList.replace('border-white', 'border-transparent'));
+                        btn.classList.replace('border-transparent', 'border-white');
+                        this.myPlayerColor = btn.dataset.color;
+                    };
+                });
+            }
+
+            renderLocalPlayersList() {
+                const container = document.getElementById('localPlayersList');
+                container.innerHTML = this.localPlayers.map((p, idx) => `
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-4 h-4 rounded-full" style="background-color: ${p.color}"></div>
+                            <input type="text" value="${p.name}" onchange="app.localPlayers[${idx}].name = this.value" class="bg-transparent text-white font-bold text-sm focus:outline-none border-b border-slate-700">
+                        </div>
+                        <div class="flex items-center space-x-3 text-xs text-slate-400">
+                            <span>Kontroll: <strong class="text-cyan-400">${p.controls.label}</strong></span>
+                            ${this.localPlayers.length > 2 ? `<button onclick="app.removeLocalPlayer(${idx})" class="text-red-400 hover:text-red-300"><i class="fa-solid fa-trash"></i></button>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            addLocalPlayer() {
+                if (this.localPlayers.length >= 6) return;
+                const idx = this.localPlayers.length;
+                this.localPlayers.push({
+                    id: 'p' + (idx + 1),
+                    name: 'Spiller ' + (idx + 1),
+                    color: PLAYER_COLORS[idx % PLAYER_COLORS.length].hex,
+                    controls: LOCAL_CONTROLS_PRESETS[idx % LOCAL_CONTROLS_PRESETS.length]
+                });
+                this.renderLocalPlayersList();
+            }
+
+            removeLocalPlayer(idx) {
+                this.localPlayers.splice(idx, 1);
+                this.renderLocalPlayersList();
+            }
+
+            handleKeyDown(e) {
+                if (this.mode === 'LOCAL_GAME') {
+                    this.localPlayers.forEach(p => {
+                        const enginePlayer = this.gameEngine.players.find(ep => ep.id === p.id);
+                        if (enginePlayer) {
+                            if (e.code === p.controls.left) enginePlayer.turning = -1;
+                            if (e.code === p.controls.right) enginePlayer.turning = 1;
+                        }
+                    });
+                }
+            }
+
+            handleKeyUp(e) {
+                if (this.mode === 'LOCAL_GAME') {
+                    this.localPlayers.forEach(p => {
+                        const enginePlayer = this.gameEngine.players.find(ep => ep.id === p.id);
+                        if (enginePlayer) {
+                            if (e.code === p.controls.left && enginePlayer.turning === -1) enginePlayer.turning = 0;
+                            if (e.code === p.controls.right && enginePlayer.turning === 1) enginePlayer.turning = 0;
+                        }
+                    });
+                }
+            }
+
+            leaveRoomAndReset() {
+                if (roomUnsubscribe) roomUnsubscribe();
+                this.gameEngine.stop();
+                this.mode = 'SELECT';
+                currentRoomId = null;
+                this.switchView('selection');
+            }
+        }
+
+        window.addEventListener('load', () => {
+            window.app = new App();
+
+            // Chromecast Receiver Setup (Google Cast SDK)
+            window['__onGCastApiAvailable'] = function(isAvailable) {
+                if (isAvailable) {
+                    try {
+                        cast.framework.CastContext.getInstance().setOptions({
+                            receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+                            autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+                        });
+                        document.getElementById('castBtn').classList.remove('hidden');
+                    } catch(e){}
+                }
+            };
+        });
+    </script>
+</body>
+</html>
